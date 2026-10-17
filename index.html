@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0c0e">
+<title>尸潮幸存者 Zombie Tide Survivors</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="reduced-ok">
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- ===== 局内 HUD ===== -->
+  <div id="hud" class="hidden">
+    <div class="hud-tl">
+      <div class="bar hp"><div id="hpFill" class="fill"></div><span id="hpText">100 / 100</span></div>
+      <div class="row">
+        <span class="chip" id="armorChip">护甲 0</span>
+        <span class="chip hidden" id="regenChip">再生</span>
+        <span class="chip hidden" id="reviveChip">应激针剂</span>
+      </div>
+      <div id="radioBox"></div>
+    </div>
+
+    <div class="hud-tc">
+      <div id="waveBox"><span id="waveText">第 1 波</span><span id="enemyLeft">剩余 0</span></div>
+      <div id="comboBox" class="hidden"><span id="comboText">x5</span><div class="cbar"><i id="comboFill"></i></div></div>
+      <div id="bossBox" class="hidden"><span id="bossName">屠夫</span><div class="bar boss"><div id="bossFill" class="fill"></div></div></div>
+      <div id="bannerBox" class="hidden"><div id="bannerMain"></div><div id="bannerSub"></div></div>
+    </div>
+
+    <div class="hud-tr">
+      <div id="timeText">00:00</div>
+      <div id="killText">击杀 0</div>
+      <div id="serumText">血清 0</div>
+    </div>
+
+    <div class="hud-bl">
+      <div id="weaponSlots"></div>
+      <div id="consumables"></div>
+    </div>
+
+    <div class="hud-br">
+      <canvas id="minimap" width="220" height="150"></canvas>
+    </div>
+
+    <div id="toasts"></div>
+    <div id="vignette" class="hidden"></div>
+    <div id="lowHpPulse" class="hidden"></div>
+  </div>
+
+  <!-- ===== 升级三选一 ===== -->
+  <div id="screen-levelup" class="screen hidden">
+    <div class="levelup-wrap">
+      <div class="levelup-head"><span id="levelupTitle">等级提升</span> <span id="levelupLevel" class="gold"></span><span id="levelupSub"> — 选择一项强化</span></div>
+      <div id="upgradeCards" class="cards"></div>
+      <div class="hint">按 1 / 2 / 3 键或点击选择 · <button id="btnReroll" class="btn ghost">刷新</button></div>
+    </div>
+  </div>
+
+  <!-- ===== 主菜单 ===== -->
+  <div id="screen-name" class="screen hidden">
+    <div class="panel small name-panel">
+      <h2>登记代号</h2>
+      <div class="dim name-tip">灯塔的电台需要知道你是谁。<br>这个名字会出现在电台播报、情报日志抬头与结局里。</div>
+      <input id="heroNameInput" class="name-input" maxlength="12" placeholder="流浪者" autocomplete="off">
+      <div class="panel-actions col">
+        <button id="btnConfirmName" class="btn primary">开始清道</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen-menu" class="screen">
+    <div class="menu-panel">
+      <h1 class="logo">尸潮幸存者</h1>
+      <div class="logo-sub">Z O M B I E &nbsp; T I D E &nbsp; S U R V I V O R S</div>
+      <div class="menu-buttons">
+        <button id="btnContinue" class="btn primary hidden">继续游戏</button>
+        <button id="btnNew" class="btn primary">开始新游戏</button>
+        <button id="btnMeta" class="btn">永久强化</button>
+        <button id="btnStats" class="btn">战绩与成就</button>
+        <button id="btnSettings" class="btn">设置</button>
+        <button id="btnHelp" class="btn">操作说明</button>
+        <button id="btnArchive" class="btn">档案室</button>
+      </div>
+      <div class="credits">
+        <div class="credits-title">致 谢</div>
+        <div class="credits-names">吴彦童 · 傲日格勒 · 吴博文 · 薄明宇</div>
+        <div class="credits-note">排名不分先后</div>
+      </div>
+      <div class="menu-foot">
+        <span id="menuHero"></span>
+        <span id="menuSerum" class="gold">血清 0</span>
+        <span id="menuRecord"></span>
+        <span id="menuVersion">v1.0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 地图选择 ===== -->
+  <div id="screen-maps" class="screen hidden">
+    <div class="panel wide">
+      <div class="panel-head">
+        <button class="btn ghost back" data-back>‹ 返回</button>
+        <h2>选择战场</h2>
+        <div class="spacer"></div>
+      </div>
+      <div id="mapCards" class="map-cards"></div>
+      <div class="map-detail">
+        <div id="mapDetail"></div>
+        <div class="diff-row">
+          <span class="label">难度</span>
+          <div id="diffButtons" class="seg"></div>
+        </div>
+        <div class="diff-row">
+          <span class="label">契约</span>
+          <div id="curseButtons" class="seg"></div>
+        </div>
+        <div id="curseHint" class="dim"></div>
+      </div>
+      <div class="panel-actions">
+        <span id="mapUnlockHint" class="dim"></span>
+        <button id="btnStartRun" class="btn primary big">进入战场</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 暂停 ===== -->
+  <div id="screen-pause" class="screen hidden">
+    <div class="panel small">
+      <h2>已暂停</h2>
+      <div class="panel-actions col">
+        <button id="btnResume" class="btn primary">继续战斗</button>
+        <button id="btnPauseSaveQuit" class="btn">保存并退出</button>
+        <button id="btnPauseSettings" class="btn">设置</button>
+        <button id="btnGiveUp" class="btn danger">放弃本局</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 结算 ===== -->
+  <div id="screen-result" class="screen hidden">
+    <div class="panel">
+      <h2 id="resultTitle">阵亡</h2>
+      <div id="resultSub" class="dim"></div>
+      <div id="resultStats" class="stat-list"></div>
+      <div id="resultUnlocks"></div>
+      <div id="resultEpilogue" class="epilogue hidden"></div>
+      <div class="panel-actions col">
+        <button id="btnEndless" class="btn primary hidden">进入无尽模式</button>
+        <button id="btnRetry" class="btn primary">再来一局</button>
+        <button id="btnResultMenu" class="btn">返回主菜单</button>
+        <button id="btnResultMeta" class="btn">永久强化</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 永久强化 ===== -->
+  <div id="screen-meta" class="screen hidden">
+    <div class="panel wide">
+      <div class="panel-head">
+        <button class="btn ghost back" data-back>‹ 返回</button>
+        <h2>永久强化</h2>
+        <div class="gold" id="metaSerum">血清 0</div>
+      </div>
+      <div id="metaList" class="meta-list"></div>
+    </div>
+  </div>
+
+  <!-- ===== 战绩与成就 ===== -->
+  <div id="screen-stats" class="screen hidden">
+    <div class="panel wide">
+      <div class="panel-head">
+        <button class="btn ghost back" data-back>‹ 返回</button>
+        <h2>战绩与成就</h2>
+        <div class="spacer"></div>
+      </div>
+      <div id="statsTotals" class="stat-list horizontal"></div>
+      <h3>成就</h3>
+      <div id="achievements" class="ach-grid"></div>
+      <h3>最近战绩</h3>
+      <div id="historyTable" class="table-wrap"></div>
+      <h3>存档管理</h3>
+      <div class="panel-actions">
+        <button id="btnExport" class="btn">导出存档</button>
+        <button id="btnImport" class="btn">导入存档</button>
+        <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+        <button id="btnReset" class="btn danger">重置所有存档</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 设置 ===== -->
+  <div id="screen-settings" class="screen hidden">
+    <div class="panel">
+      <div class="panel-head">
+        <button class="btn ghost back" data-back>‹ 返回</button>
+        <h2>设置</h2>
+        <div class="spacer"></div>
+      </div>
+      <div id="settingsForm" class="settings-form"></div>
+    </div>
+  </div>
+
+  <!-- ===== 操作说明 ===== -->
+  <div id="screen-archive" class="screen hidden">
+    <div class="panel wide">
+      <div class="panel-head">
+        <button class="btn ghost back" data-back>‹ 返回</button>
+        <h2>档案室</h2>
+        <div class="spacer"></div>
+        <div id="archiveProgress" class="dim"></div>
+      </div>
+      <h3>人物</h3>
+      <div id="archiveChars" class="ach-grid"></div>
+      <h3>情报日志</h3>
+      <div id="archiveIntel" class="intel-list"></div>
+      <h3>结局</h3>
+      <div id="archiveEndings" class="ach-grid"></div>
+    </div>
+  </div>
+
+  <div id="screen-help" class="screen hidden">
+    <div class="panel wide">
+      <div class="panel-head">
+        <button class="btn ghost back" data-back>‹ 返回</button>
+        <h2>操作说明</h2>
+        <div class="spacer"></div>
+      </div>
+      <div class="help-grid">
+        <div>
+          <h3>键鼠</h3>
+          <table class="keys">
+            <tr><td>WASD / 方向键</td><td>移动</td></tr>
+            <tr><td>鼠标</td><td>瞄准</td></tr>
+            <tr><td>左键（按住）</td><td>射击</td></tr>
+            <tr><td>R</td><td>换弹</td></tr>
+            <tr><td>空格</td><td>闪避翻滚</td></tr>
+            <tr><td>G</td><td>投掷手雷</td></tr>
+            <tr><td>H</td><td>使用医疗包</td></tr>
+            <tr><td>Q / 滚轮</td><td>切换武器</td></tr>
+            <tr><td>ESC</td><td>暂停</td></tr>
+            <tr><td>F3</td><td>调试信息</td></tr>
+          </table>
+        </div>
+        <div>
+          <h3>触屏</h3>
+          <table class="keys">
+            <tr><td>左半屏拖动</td><td>移动</td></tr>
+            <tr><td>右半屏拖动</td><td>瞄准并自动射击</td></tr>
+            <tr><td>右下按钮</td><td>换弹 / 闪避 / 手雷 / 医疗 / 换枪</td></tr>
+            <tr><td>右上按钮</td><td>暂停 / 全屏（手机上建议横屏 + 全屏）</td></tr>
+          </table>
+          <h3>幸存守则</h3>
+          <ul class="tips">
+            <li>经验球会被"磁力手套"吸引，别停着不动。</li>
+            <li>闪避有无敌帧，穿过尸群时用它换位置。</li>
+            <li>精英与 Boss 必掉血清，这是局外成长的本钱。</li>
+            <li>每波之间只有 8 秒喘息，先捡东西再进下一波。</li>
+            <li>每波结束都会自动存档，随时可以退出。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 触屏控制 ===== -->
+  <div id="touch" class="hidden">
+    <div id="touchLeft" class="touch-zone"></div>
+    <div id="touchRight" class="touch-zone"></div>
+    <div class="stick-hint" id="stickHintL"><i></i></div>
+    <div class="stick-hint" id="stickHintR"><i></i></div>
+    <div id="stickL" class="stick"><div class="ring"></div><div class="knob"></div></div>
+    <div id="stickR" class="stick"><div class="ring"></div><div class="knob"></div></div>
+    <div id="touchTop">
+      <button class="tbtn small" data-act="pause">❚❚</button>
+      <button class="tbtn small" data-act="fullscreen">⛶</button>
+    </div>
+    <div id="touchButtons">
+      <button class="tbtn" data-act="reload">换弹</button>
+      <button class="tbtn" data-act="swap">换枪</button>
+      <button class="tbtn" data-act="medkit">医疗</button>
+      <button class="tbtn" data-act="grenade">手雷</button>
+      <button class="tbtn big" data-act="dash">闪避</button>
+    </div>
+  </div>
+
+  <div id="fpsDebug" class="hidden"></div>
+
+  <div id="rotateHint" class="hidden">建议横屏游玩 · 点右上角 ⛶ 进入全屏</div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/data.js"></script>
+<script src="js/save.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/art.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
